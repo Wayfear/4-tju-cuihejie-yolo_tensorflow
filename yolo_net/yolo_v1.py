@@ -1,13 +1,16 @@
-# -*- coding: utf-8 -*-
-
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
 
+import config as cfg
+
 class Yolo(object):
 
     def __init__(self):
-        pass
+        self.coord_scale = cfg.COORD_SCALE
+        self.noobj_scale = cfg.NOOBJ_SCALE
+
+        self.net = self._build_net()
 
     def inference(self, images, class_num, boxes_per_cell, cell_num,
                   keep_probability, phase_train=True, reuse=None):
@@ -30,8 +33,38 @@ class Yolo(object):
             return self.build_net(images, class_num, boxes_per_cell, cell_num,
                            is_training=phase_train, dropout_keep_prob=keep_probability, reuse=reuse)
 
+    def _calc_iou(self, box1, box2):
+        """
+        box: (x, y, w, h)
+        """
 
-    def build_net(self, inputs, class_num, boxes_per_cell, cell_num,
+        c_area = box1[2] * box1[3]
+        g_area = box2[2] * box2[3]
+
+        c_x1 = box1[0] - box1[2] / 2
+        c_x2 = box1[0] + box1[2] / 2
+        c_y1 = box1[1] - box1[3] / 2
+        c_y2 = box1[1] + box1[3] / 2
+
+        g_x1 = box2[0] - box2[2] / 2
+        g_x2 = box2[0] + box2[2] / 2
+        g_y1 = box2[1] - box2[3] / 2
+        g_y2 = box2[1] + box2[3] / 2
+
+        x1 = max(c_x1, g_x1)
+        y1 = max(c_y1, g_y1)
+        x2 = min(c_x2, g_x2)
+        y2 = min(c_y2, g_y2)
+        w = max(0, x2 - x1)
+        h = max(0, y2 - y1)
+
+        area = w * h
+
+        iou = area / (c_area + g_area - area)
+
+        return iou
+
+    def _build_net(self, inputs, class_num, boxes_per_cell, cell_num,
                             is_training=True,
                             dropout_keep_prob=0.8,
                             reuse=None,
@@ -82,9 +115,11 @@ class Yolo(object):
                 net = slim.flatten(net, scope="flatten_32")
 
                 with slim.arg_scope([slim.fully_connected], activation_fn=tf.nn.leaky_relu,  weights_regularizer=slim.l2_regularizer(0.001)):
-                    # net = slim.fully_connected(net, 256, scope='fc_33')
-                    # net = slim.dropout(net, scope="dropout_34", keep_prob=dropout_keep_prob)
-                    net = slim.fully_connected(net, 4096, scope='fc35')
-                    net = slim.dropout(net, scope="dropout_36", keep_prob=dropout_keep_prob)
-                net = slim.fully_connected(net, cell_num * cell_num*(class_num+5*boxes_per_cell), scope="output_37")
+                    net = slim.fully_connected(net, 4096, scope='fc33')
+                    net = slim.dropout(net, scope="dropout_34", keep_prob=dropout_keep_prob)
+                net = slim.fully_connected(net, cell_num * cell_num*(class_num+5*boxes_per_cell), scope="output_35")
         return net
+
+    def _train_op(self):
+        net = tf.reshape(self.net, (cfg.CELL_SIZE, cfg.CELL_SIZE, 5 * cfg.BOX_PER_CELL))
+
