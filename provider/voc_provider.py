@@ -20,10 +20,10 @@ class VocProvider(object):
 
         self.classes = cfg.CLASSES
         self.class_num = len(cfg.CLASSES)
-        self.batch_num = cfg.BATCH_NUM
+        self.batch_size = cfg.BATCH_SIZE
 
         self.cursor = 0
-        self.labels = []
+        self.gl_labels = []
 
         self._init_data()
 
@@ -59,7 +59,9 @@ class VocProvider(object):
                 label[y_index, x_index, 5 + class_index] = 1
 
             label = {'imname': file_name, 'data': data}
-            self.labels.append(label)
+            self.gl_labels.append(label)
+
+        self.train_size = len(self.gl_labels)
 
     def get_data(self):
         """Get train data
@@ -69,4 +71,18 @@ class VocProvider(object):
             labels: [?, IMAGE_SIZE, IMAGE_SIZE, 5 + CLASS_NUM]
         """
 
-        # for i in range(64):
+        images = np.zeros((self.batch_size, self.image_size, self.image_size, 3), np.float32)
+        labels = np.zeros((self.batch_size, self.image_size, self.image_size, 5 + self.class_num), np.float32)
+
+        for i in range(self.batch_size):
+            label = labels[self.cursor]
+            self.cursor += 1
+
+            impath = self.jpeg_dir + label['imname']
+            image = cv2.imread(impath)
+            image = cv2.resize(image, (self.image_size, self.image_size))
+
+            images[i] = image
+            labels[i] = label
+
+        return images, labels

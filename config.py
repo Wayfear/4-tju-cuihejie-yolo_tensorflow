@@ -10,7 +10,7 @@ CLASSES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
 # model parameter
 #
 
-BATCH_NUM = 64
+BATCH_SIZE = 64
 
 IMAGE_SIZE = 448
 
