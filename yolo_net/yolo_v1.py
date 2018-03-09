@@ -10,7 +10,7 @@ class Yolo(object):
         self.coord_scale = cfg.COORD_SCALE
         self.noobj_scale = cfg.NOOBJ_SCALE
 
-        self.net = self._build_net()
+        # self.net = self._build_net()
 
     def inference(self, images, class_num, boxes_per_cell, cell_num,
                   keep_probability, phase_train=True, reuse=None):
@@ -30,7 +30,7 @@ class Yolo(object):
                             weights_regularizer=slim.l2_regularizer(0.005),
                             normalizer_fn=slim.batch_norm,
                             normalizer_params=batch_norm_params):
-            return self.build_net(images, class_num, boxes_per_cell, cell_num,
+            return self._build_net(images, class_num, boxes_per_cell, cell_num,
                            is_training=phase_train, dropout_keep_prob=keep_probability, reuse=reuse)
 
     def _calc_iou(self, box1, box2):
@@ -74,50 +74,43 @@ class Yolo(object):
             with slim.arg_scope([slim.batch_norm, slim.dropout],
                                 is_training=is_training):
                 with slim.arg_scope([slim.conv2d],
-                                    stride=1, activation_fn=tf.nn.leaky_relu), slim.arg_scope([slim.max_pool2d], padding='SAME'):
-                    net = tf.pad(
-                        inputs, np.array([[0, 0], [3, 3], [3, 3], [0, 0]]),
-                        name='pad_1')
-                    net = slim.conv2d(net, 64, 7, stride=2, padding='VALID', scope='conv_2')
-                    net = slim.max_pool2d(net, 2, padding='SAME', scope='pool_3')
-                    net = slim.conv2d(net, 192, 3, scope='conv_4')
-                    net = slim.max_pool2d(net, 2, padding='SAME', scope='pool_5')
-                    net = slim.conv2d(net, 128, 1, scope='conv_6')
-                    net = slim.conv2d(net, 256, 3, scope='conv_7')
-                    net = slim.conv2d(net, 256, 1, scope='conv_8')
-                    net = slim.conv2d(net, 512, 3, scope='conv_9')
-                    net = slim.max_pool2d(net, 2, padding='SAME', scope='pool_10')
-                    net = slim.conv2d(net, 256, 1, scope='conv_11')
-                    net = slim.conv2d(net, 512, 3, scope='conv_12')
-                    net = slim.conv2d(net, 256, 1, scope='conv_13')
-                    net = slim.conv2d(net, 512, 3, scope='conv_14')
-                    net = slim.conv2d(net, 256, 1, scope='conv_15')
-                    net = slim.conv2d(net, 512, 3, scope='conv_16')
-                    net = slim.conv2d(net, 256, 1, scope='conv_17')
-                    net = slim.conv2d(net, 512, 3, scope='conv_18')
-                    net = slim.conv2d(net, 512, 1, scope='conv_19')
-                    net = slim.conv2d(net, 1024, 3, scope='conv_20')
-                    net = slim.max_pool2d(net, 2, padding='SAME', scope='pool_21')
-                    net = slim.conv2d(net, 512, 1, scope='conv_22')
-                    net = slim.conv2d(net, 1024, 3, scope='conv_23')
-                    net = slim.conv2d(net, 512, 1, scope='conv_24')
+                                    activation_fn=tf.nn.leaky_relu), slim.arg_scope([slim.max_pool2d], padding='SAME'):
+                    net = slim.conv2d(inputs, 64, 7, 2, scope='conv_1')
+                    net = slim.max_pool2d(net, 2, scope='pool_2')
+                    net = slim.conv2d(net, 192, 3, scope='conv_3')
+                    net = slim.max_pool2d(net, 2, scope='pool_4')
+                    net = slim.conv2d(net, 128, 1, scope='conv_5')
+                    net = slim.conv2d(net, 256, 3, scope='conv_6')
+                    net = slim.conv2d(net, 256, 1, scope='conv_7')
+                    net = slim.conv2d(net, 512, 3, scope='conv_8')
+                    net = slim.max_pool2d(net, 2, scope='pool_9')
+                    net = slim.conv2d(net, 256, 1, scope='conv_10')
+                    net = slim.conv2d(net, 512, 3, scope='conv_11')
+                    net = slim.conv2d(net, 256, 1, scope='conv_12')
+                    net = slim.conv2d(net, 512, 3, scope='conv_13')
+                    net = slim.conv2d(net, 256, 1, scope='conv_14')
+                    net = slim.conv2d(net, 512, 3, scope='conv_15')
+                    net = slim.conv2d(net, 256, 1, scope='conv_16')
+                    net = slim.conv2d(net, 512, 3, scope='conv_17')
+                    net = slim.conv2d(net, 512, 1, scope='conv_18')
+                    net = slim.conv2d(net, 1024, 3, scope='conv_19')
+                    net = slim.max_pool2d(net, 2, scope='pool_20')
+                    net = slim.conv2d(net, 512, 1, scope='conv_21')
+                    net = slim.conv2d(net, 1024, 3, scope='conv_22')
+                    net = slim.conv2d(net, 512, 1, scope='conv_23')
+                    net = slim.conv2d(net, 1024, 3, scope='conv_24')
                     net = slim.conv2d(net, 1024, 3, scope='conv_25')
-                    net = slim.conv2d(net, 1024, 3, scope='conv_26')
-                    net = tf.pad(
-                        net, np.array([[0, 0], [1, 1], [1, 1], [0, 0]]),
-                        name='pad_27')
-                    net = slim.conv2d(
-                        net, 1024, 3, stride=2, padding='VALID', scope='conv_28')
-                    net = slim.conv2d(net, 1024, 3, scope='conv_29')
-                    net = slim.conv2d(net, 1024, 3, scope='conv_30')
+                    net = slim.conv2d(net, 1024, 3, stride=2, scope='conv_26')
+                    net = slim.conv2d(net, 1024, 3, scope='conv_27')
+                    net = slim.conv2d(net, 1024, 3, scope='conv_28')
 
-                net = tf.transpose(net, [0, 3, 1, 2], name='trans_31')
-                net = slim.flatten(net, scope="flatten_32")
+                net = slim.flatten(net, scope="flatten_29")
 
                 with slim.arg_scope([slim.fully_connected], activation_fn=tf.nn.leaky_relu,  weights_regularizer=slim.l2_regularizer(0.001)):
-                    net = slim.fully_connected(net, 4096, scope='fc33')
-                    net = slim.dropout(net, scope="dropout_34", keep_prob=dropout_keep_prob)
-                net = slim.fully_connected(net, cell_num * cell_num*(class_num+5*boxes_per_cell), scope="output_35")
+                    net = slim.fully_connected(net, 4096, scope='conn_30')
+                    net = slim.dropout(net, scope="dropout_31", keep_prob=dropout_keep_prob)
+                net = slim.fully_connected(net, cell_num*cell_num*(class_num+5*boxes_per_cell), scope="conn_32")
+                net = tf.reshape(net, [tf.shape(net)[0], cell_num, cell_num, class_num+5*boxes_per_cell])
         return net
 
     def _train_op(self):
