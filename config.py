@@ -12,7 +12,7 @@ CLASS_NUM = len(CLASSES)
 # solver parameter
 #
 
-MAX_ITER = 15000
+MAX_ITER = 30000
 
 SUMMARY_ITER = 10
 

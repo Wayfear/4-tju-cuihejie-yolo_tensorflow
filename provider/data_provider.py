@@ -47,6 +47,8 @@ class DataProvider(object):
                 x_index = int(boxes[0] * cfg.CELL_SIZE / cfg.IMAGE_SIZE)
                 y_index = int(boxes[1] * cfg.CELL_SIZE / cfg.IMAGE_SIZE)
 
+                boxes = [value / cfg.IMAGE_SIZE for value in boxes]
+
                 if data[y_index, x_index, 0] == 1:
                     continue
 

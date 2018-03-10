@@ -45,6 +45,9 @@ def main():
             yolo.labels: labels
         }
 
+        preds, loss = sess.run([yolo.net, yolo.loss], feed_dict=feed_dict)
+        # yolo.debug(preds, labels)
+
         if iter % cfg.SUMMARY_ITER == 0:
             loss, _ = sess.run([yolo.loss, train_op], feed_dict=feed_dict)
             print("Epoch: {}, Iter: {}, Loss: {}".format(data.epoch, iter, loss))

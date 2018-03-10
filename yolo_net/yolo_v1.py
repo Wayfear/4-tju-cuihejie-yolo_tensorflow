@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
+import code
 
 import config as cfg
 
@@ -55,8 +56,7 @@ class Yolo(object):
         box1 = tf.stack([[box1[..., 1:5 * cfg.BOX_PER_CELL:5] - box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
                          [box1[..., 2:5 * cfg.BOX_PER_CELL:5] - box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0],  # y1
                          [box1[..., 1:5 * cfg.BOX_PER_CELL:5] + box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x2
-                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] + box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]],
-                         axis=0)  # y2
+                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] + box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]])  # y2
         box1 = tf.squeeze(box1, [1])
 
         box2 = tf.stack([[box2[..., 1:5 * cfg.BOX_PER_CELL:5] - box2[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
@@ -75,6 +75,43 @@ class Yolo(object):
         iou = area / tf.maximum((c_area + g_area - area), 1e-10) # prevent divided by zero!
 
         return tf.clip_by_value(iou, 0.0, 1.0)
+
+    def _calc_iou_np(self, box1, box2):
+        """
+        box: [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 5*BOX_PER_CELL]
+        5  : [c, x, y, w, h]
+        """
+
+        # x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
+        # y_index = np.arange(2, 5 * cfg.BOX_PER_CELL, 5)
+        # w_index = np.arange(3, 5 * cfg.BOX_PER_CELL, 5)
+        # h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
+
+        c_area = box1[..., 3:5 * cfg.BOX_PER_CELL:5] * box1[..., 4:5 * cfg.BOX_PER_CELL:5]
+        g_area = box2[..., 3:5 * cfg.BOX_PER_CELL:5] * box2[..., 4:5 * cfg.BOX_PER_CELL:5]
+
+        box1 = np.stack([[box1[..., 1:5 * cfg.BOX_PER_CELL:5] - box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
+                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] - box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0],  # y1
+                         [box1[..., 1:5 * cfg.BOX_PER_CELL:5] + box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x2
+                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] + box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]]) # y2
+        box1 = np.squeeze(box1, [1])
+
+        box2 = np.stack([[box2[..., 1:5 * cfg.BOX_PER_CELL:5] - box2[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
+                         [box2[..., 2:5 * cfg.BOX_PER_CELL:5] - box2[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0],  # y1
+                         [box2[..., 1:5 * cfg.BOX_PER_CELL:5] + box2[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x2
+                         [box2[..., 2:5 * cfg.BOX_PER_CELL:5] + box2[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]]) # y2
+        box2 = np.squeeze(box2, [1])
+
+        left_top = np.maximum(box1[:2, ...], box2[:2, ...])
+        right_bottom = np.minimum(box1[2:, ...], box2[2:, ...])
+
+        w = np.maximum(0.0, right_bottom[0, ...] - left_top[0, ...])
+        h = np.maximum(0.0, right_bottom[1, ...] - left_top[1, ...])
+        area = w * h
+
+        iou = area / np.maximum((c_area + g_area - area), 1e-10) # prevent divided by zero!
+
+        return np.clip(iou, 0.0, 1.0)
 
     def _build_net(self, inputs, class_num, boxes_per_cell, cell_num,
                    is_training=True,
@@ -127,7 +164,7 @@ class Yolo(object):
         return net
 
     def _loss(self, preds, labels):
-        """ Get the train op
+        """ Get loss
 
         Args:
             preds:  [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 5 * BOX_PER_CELL + CLASS_NUM]
@@ -146,7 +183,7 @@ class Yolo(object):
 
         max_iou = tf.reduce_max(iou, [3], keepdims=True)
 
-        response = tf.cast(iou > max_iou, tf.float32)
+        response = tf.cast(iou >= max_iou, tf.float32)
 
         # Compute first line
         # x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
@@ -190,3 +227,38 @@ class Yolo(object):
         tf.losses.add_loss(class_loss)
 
         return tf.losses.get_total_loss()
+
+    def debug(self, preds, labels):
+
+        mask_obj = labels[:, :, :, 0, np.newaxis]  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 1]
+        mask_obj = np.tile(mask_obj, [1, 1, 1, cfg.BOX_PER_CELL])
+
+        boxes = np.tile(labels[..., :5], [1, 1, 1, cfg.BOX_PER_CELL])  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 5 * BOX_PER_CELL]
+
+        iou = self._calc_iou_np(preds[:, :, :, :5 * cfg.BOX_PER_CELL], boxes[:, :, :, :5 * cfg.BOX_PER_CELL])
+
+        max_iou = np.max(iou, (3,), keepdims=True)
+
+        response = (iou >= max_iou).astype(float)
+
+        # Compute first line
+        # x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
+        # y_index = np.arange(2, 5 * cfg.BOX_PER_CELL, 5)
+        coord_loss = cfg.COORD_SCALE * np.sum(
+            mask_obj * response * (
+                    np.square(preds[..., 1:5*cfg.BOX_PER_CELL:5] - boxes[..., 1:5*cfg.BOX_PER_CELL:5]) +
+                    np.square(preds[..., 2:5*cfg.BOX_PER_CELL:5] - boxes[..., 2:5*cfg.BOX_PER_CELL:5])
+            )
+        )
+
+        # Compute second line
+        # w_index = np.arange(3, 5 * cfg.BOX_PER_CELL, 5)
+        # h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
+        size_loss = cfg.COORD_SCALE * np.sum(
+            mask_obj * response * (
+                np.square(tf.sqrt(preds[..., 3:5*cfg.BOX_PER_CELL:5]) - tf.sqrt(boxes[..., 3:5*cfg.BOX_PER_CELL:5])) +
+                np.square(tf.sqrt(preds[..., 4:5*cfg.BOX_PER_CELL:5]) - tf.sqrt(boxes[..., 4:5*cfg.BOX_PER_CELL:5]))
+                )
+        )
+
+        code.interact(local=locals())
