@@ -12,6 +12,8 @@ def main():
 
     yolo = Yolo()
 
+    saver = tf.train.Saver(max_to_keep=5)
+
     global_step = tf.train.create_global_step()
     learning_rate = tf.train.exponential_decay(
         cfg.LEARNING_RATE,
@@ -30,7 +32,11 @@ def main():
     )
 
     sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
+
+    if tf.train.checkpoint_exists("checkpoint/yolo"):
+        saver.restore(sess, tf.train.latest_checkpoint("checkpoint/yolo"))
+    else:
+        sess.run(tf.global_variables_initializer())
 
     for iter in range(1, cfg.MAX_ITER + 1):
         images, labels = data.get_data()
@@ -44,6 +50,9 @@ def main():
             print("Epoch: {}, Iter: {}, Loss: {}".format(data.epoch, iter, loss))
         else:
             sess.run(train_op, feed_dict=feed_dict)
+
+        if iter % cfg.SAVE_ITER == 0:
+            saver.save(sess, "checkpoint/yolo", global_step=global_step)
 
 
 if __name__ == '__main__':

@@ -63,8 +63,8 @@ class DataProvider(object):
         """Get train data
 
         Returns:
-            images: [?, IMAGE_SIZE, IMAGE_SIZE, 3]
-            labels: [?, IMAGE_SIZE, IMAGE_SIZE, 5 + CLASS_NUM]
+            images: [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, 3]
+            labels: [BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE, 5 + CLASS_NUM]
         """
 
         images = np.zeros((cfg.BATCH_SIZE, cfg.IMAGE_SIZE, cfg.IMAGE_SIZE, 3), np.float32)
