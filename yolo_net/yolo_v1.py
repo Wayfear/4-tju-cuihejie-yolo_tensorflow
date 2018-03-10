@@ -1,6 +1,7 @@
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
+import code
 
 import config as cfg
 
@@ -10,7 +11,10 @@ class Yolo(object):
         self.coord_scale = cfg.COORD_SCALE
         self.noobj_scale = cfg.NOOBJ_SCALE
 
-        # self.net = self._build_net()
+        self.images = tf.placeholder(tf.float32, [cfg.BATCH_SIZE, cfg.IMAGE_SIZE, cfg.IMAGE_SIZE, 3], name='images')
+        self.labels = tf.placeholder(tf.float32, [cfg.BATCH_SIZE, cfg.CELL_SIZE, cfg.CELL_SIZE, 5 + cfg.CLASS_NUM], name='labels')
+        self.net = self._build_net(self.images, cfg.CLASS_NUM, cfg.BOX_PER_CELL, cfg.CELL_SIZE)
+        self.loss = self._loss(self.net, self.labels)
 
     def inference(self, images, class_num, boxes_per_cell, cell_num,
                   keep_probability, phase_train=True, reuse=None):
@@ -35,29 +39,28 @@ class Yolo(object):
 
     def _calc_iou(self, box1, box2):
         """
-        box: (x, y, w, h)
+        box: [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 5*BOX_PER_CELL]
+        5  : [c, x, y, w, h]
         """
 
-        c_area = box1[2] * box1[3]
-        g_area = box2[2] * box2[3]
+        c_area = box1[..., 3] * box1[..., 4]
+        g_area = box2[..., 3] * box2[..., 4]
 
-        c_x1 = box1[0] - box1[2] / 2
-        c_x2 = box1[0] + box1[2] / 2
-        c_y1 = box1[1] - box1[3] / 2
-        c_y2 = box1[1] + box1[3] / 2
+        box1 = tf.stack([[box1[..., 1] - box1[..., 3] / 2.0],  # x1
+                         [box1[..., 2] - box1[..., 4] / 2.0],  # y1
+                         [box1[..., 1] + box1[..., 3] / 2.0],  # x2
+                         [box1[..., 2] + box1[..., 4] / 2.0]]) # y2
 
-        g_x1 = box2[0] - box2[2] / 2
-        g_x2 = box2[0] + box2[2] / 2
-        g_y1 = box2[1] - box2[3] / 2
-        g_y2 = box2[1] + box2[3] / 2
+        box2 = tf.stack([[box2[..., 1] - box2[..., 3] / 2.0],  # x1
+                         [box2[..., 2] - box2[..., 4] / 2.0],  # y1
+                         [box2[..., 1] + box2[..., 3] / 2.0],  # x2
+                         [box2[..., 2] + box2[..., 4] / 2.0]]) # y2
 
-        x1 = max(c_x1, g_x1)
-        y1 = max(c_y1, g_y1)
-        x2 = min(c_x2, g_x2)
-        y2 = min(c_y2, g_y2)
-        w = max(0, x2 - x1)
-        h = max(0, y2 - y1)
+        left_top = tf.maximum(box1[..., :2], box2[..., :2])
+        right_bottom = tf.minimum(box1[..., 2:], box2[..., 2:])
 
+        w = tf.maximum(0.0, right_bottom[..., 0] - left_top[..., 0])
+        h = tf.maximum(0.0, right_bottom[..., 1] - left_top[..., 1])
         area = w * h
 
         iou = area / (c_area + g_area - area)
@@ -111,8 +114,54 @@ class Yolo(object):
                     net = slim.dropout(net, scope="dropout_31", keep_prob=dropout_keep_prob)
                 net = slim.fully_connected(net, cell_num*cell_num*(class_num+5*boxes_per_cell), scope="conn_32")
                 net = tf.reshape(net, [tf.shape(net)[0], cell_num, cell_num, class_num+5*boxes_per_cell])
+
+            code.interact(local=locals())
         return net
 
-    def _train_op(self):
-        net = tf.reshape(self.net, (cfg.CELL_SIZE, cfg.CELL_SIZE, 5 * cfg.BOX_PER_CELL))
+    def _loss(self, preds, labels):
+        """ Get the train op
 
+        Args:
+            preds:  [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 5 * BOX_PER_CELL + CLASS_NUM]
+            labels: [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 5 + CLASS_NUM]
+
+        Returns:
+
+        """
+
+        mask_obj = labels[:, :, :, 0] # [?, CELL_SIZE, CELL_SIZE]
+
+        labels = tf.tile(labels, [0, 0, 0, cfg.BOX_PER_CELL])
+
+        iou = self._calc_iou(preds[:, :, :, :5*cfg.BOX_PER_CELL], labels[:, :, :, :5*cfg.BOX_PER_CELL])
+
+        max_iou = tf.reduce_max(iou, )
+
+        response = tf.cast(iou > max_iou, tf.float32)
+
+        # Compute first line
+        x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
+        y_index = np.arange(2, 5 * cfg.BOX_PER_CELL, 5)
+        coord_loss = cfg.COORD_SCALE * tf.reduce_sum(mask_obj * response * (tf.square(preds[..., x_index] - labels[..., x_index]) + tf.square(preds[..., y_index] - labels[..., y_index])))
+        slim.losses.add_loss(coord_loss)
+
+        # Compute second line
+        w_index = np.arange(3, 5 * cfg.BOX_PER_CELL, 5)
+        h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
+        size_loss = cfg.COORD_SCALE * tf.reduce_sum(mask_obj * response * tf.square(tf.sqrt(preds[..., w_index]) - tf.sqrt(labels[..., w_index])) + tf.square(tf.sqrt(preds[..., h_index]) - tf.sqrt(labels[..., h_index])))
+        slim.losses.add_loss(size_loss)
+
+        # Compute third line
+        c_index = np.arange(0, 5 * cfg.BOX_PER_CELL, 5)
+        obj_loss = tf.reduce_sum(mask_obj * response * tf.square(preds[..., c_index] - iou))
+        slim.losses.add_loss(obj_loss)
+
+        # Compute forth line
+        noobj_loss = cfg.NOOBJ_SCALE * tf.reduce_sum((1 - mask_obj) * tf.square(preds[..., c_index] - 0))
+        slim.losses.add_loss(noobj_loss)
+
+        # Compute fifth line
+        class_loss = tf.reduce_sum(mask_obj * tf.reduce_sum(tf.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:])))
+        slim.losses.add_loss(class_loss)
+
+        return slim.losses.get_total_loss()

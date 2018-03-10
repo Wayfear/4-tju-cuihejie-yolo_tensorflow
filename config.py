@@ -6,11 +6,31 @@ CLASSES = ['aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus',
            'motorbike', 'person', 'pottedplant', 'sheep', 'sofa',
            'train', 'tvmonitor']
 
+CLASS_NUM = len(CLASSES)
+
+#
+# solver parameter
+#
+
+MAX_ITER = 15000
+
+SUMMARY_ITER = 10
+
+SAVE_ITER = 1000
+
+LEARNING_RATE = 0.0001
+
+DECAY_STEPS = 30000
+
+DECAY_RATE = 0.1
+
+BATCH_SIZE = 64
+
+STAIRCASE = True
+
 #
 # model parameter
 #
-
-BATCH_SIZE = 64
 
 IMAGE_SIZE = 448
 
@@ -19,6 +39,5 @@ CELL_SIZE = 7
 BOX_PER_CELL = 2
 
 COORD_SCALE = 5.0
+
 NOOBJ_SCALE = 0.5
-
-
