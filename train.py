@@ -41,7 +41,7 @@ def main():
 
         if iter % cfg.SUMMARY_ITER == 0:
             loss, _ = sess.run([yolo.loss, train_op], feed_dict=feed_dict)
-            print("Iter: {}, Loss: {}".format(iter, loss))
+            print("Epoch: {}, Iter: {}, Loss: {}".format(data.epoch, iter, loss))
         else:
             sess.run(train_op, feed_dict=feed_dict)
 

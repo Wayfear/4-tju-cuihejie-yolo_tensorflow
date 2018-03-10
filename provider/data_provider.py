@@ -17,7 +17,7 @@ class DataProvider(object):
         self.label_dir = cfg.DATA_PATH + 'Annotations/'
 
         self.cursor = 0
-        self.epoch = 0
+        self.epoch = 1
         self.gl_labels = []
 
         self._init_data()

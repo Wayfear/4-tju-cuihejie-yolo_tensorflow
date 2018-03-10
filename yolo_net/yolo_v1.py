@@ -72,9 +72,9 @@ class Yolo(object):
         h = tf.maximum(0.0, right_bottom[1, ...] - left_top[1, ...])
         area = w * h
 
-        iou = area / (c_area + g_area - area)
+        iou = area / tf.maximum((c_area + g_area - area), 1e-10) # prevent divided by zero!
 
-        return iou
+        return tf.clip_by_value(iou, 0.0, 1.0)
 
     def _build_net(self, inputs, class_num, boxes_per_cell, cell_num,
                    is_training=True,
