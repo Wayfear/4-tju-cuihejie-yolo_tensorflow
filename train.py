@@ -33,7 +33,7 @@ def main():
 
     sess = tf.Session()
 
-    if tf.train.checkpoint_exists("checkpoint/yolo"):
+    if tf.train.checkpoint_exists("checkpoint"):
         saver.restore(sess, tf.train.latest_checkpoint("checkpoint/yolo"))
     else:
         sess.run(tf.global_variables_initializer())
@@ -45,7 +45,7 @@ def main():
             yolo.labels: labels
         }
 
-        preds, loss = sess.run([yolo.net, yolo.loss], feed_dict=feed_dict)
+        # preds, loss = sess.run([yolo.net, yolo.loss], feed_dict=feed_dict)
         # yolo.debug(preds, labels)
 
         if iter % cfg.SUMMARY_ITER == 0:
