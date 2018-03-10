@@ -7,8 +7,9 @@ from provider.data_provider import DataProvider
 from yolo_net.yolo_v1 import Yolo
 
 
-def main(unused_argv):
+def main():
     data = DataProvider()
+
     yolo = Yolo()
 
     global_step = tf.train.create_global_step()
@@ -28,9 +29,7 @@ def main(unused_argv):
         global_step
     )
 
-    gpu_options = tf.GPUOptions()
-    config = tf.ConfigProto(gpu_options)
-    sess = tf.Session(config=config)
+    sess = tf.Session()
     sess.run(tf.global_variables_initializer())
 
     for iter in range(1, cfg.MAX_ITER + 1):
@@ -48,4 +47,4 @@ def main(unused_argv):
 
 
 if __name__ == '__main__':
-    tf.app.run()
+    main()
