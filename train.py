@@ -9,10 +9,7 @@ from yolo_net.yolo_v1 import Yolo
 
 def main():
     data = DataProvider()
-
     yolo = Yolo()
-
-    saver = tf.train.Saver(max_to_keep=5)
 
     global_step = tf.train.create_global_step()
     learning_rate = tf.train.exponential_decay(
@@ -31,11 +28,15 @@ def main():
         global_step
     )
 
+    saver = tf.train.Saver(max_to_keep=5)
+
     sess = tf.Session()
 
-    if tf.train.checkpoint_exists("checkpoint"):
-        saver.restore(sess, tf.train.latest_checkpoint("checkpoint/yolo"))
+    if tf.train.latest_checkpoint("checkpoint"):
+        print("Restore from checkpoint...")
+        saver.restore(sess, tf.train.latest_checkpoint("checkpoint"))
     else:
+        print("Init global variables...")
         sess.run(tf.global_variables_initializer())
 
     for iter in range(1, cfg.MAX_ITER + 1):
