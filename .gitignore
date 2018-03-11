@@ -2,3 +2,4 @@ VOCtrainval_06-Nov-2007.tar
 VOCdevkit/
 __pycache__/
 checkpoint/
+logs/

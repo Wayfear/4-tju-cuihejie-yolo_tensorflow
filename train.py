@@ -32,6 +32,10 @@ def main():
 
     sess = tf.Session()
 
+    tf.summary.scalar('loss', yolo.loss)
+    merged = tf.summary.merge_all()
+    train_writer = tf.summary.FileWriter('logs/', sess.graph)
+
     if tf.train.latest_checkpoint("checkpoint"):
         print("Restore from checkpoint...")
         saver.restore(sess, tf.train.latest_checkpoint("checkpoint"))
@@ -46,14 +50,21 @@ def main():
             yolo.labels: labels
         }
 
+        # if iter > 50:
+        #     preds, loss = sess.run([yolo.net, yolo.loss], feed_dict=feed_dict)
+        #     yolo.debug(preds, labels)
+
         # preds, loss = sess.run([yolo.net, yolo.loss], feed_dict=feed_dict)
         # yolo.debug(preds, labels)
 
+
         if iter % cfg.SUMMARY_ITER == 0:
-            loss, _ = sess.run([yolo.loss, train_op], feed_dict=feed_dict)
+            loss, summary, _ = sess.run([yolo.loss, merged, train_op], feed_dict=feed_dict)
+            train_writer.add_summary(summary, global_step=global_step.eval(sess))
             print("Epoch: {}, Iter: {}, Loss: {}".format(data.epoch, iter, loss))
         else:
-            sess.run(train_op, feed_dict=feed_dict)
+            summary, _ = sess.run([merged, train_op], feed_dict=feed_dict)
+            train_writer.add_summary(summary, global_step=global_step.eval(sess))
 
         if iter % cfg.SAVE_ITER == 0:
             saver.save(sess, "checkpoint/yolo", global_step=global_step)

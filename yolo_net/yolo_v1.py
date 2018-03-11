@@ -72,7 +72,7 @@ class Yolo(object):
         h = tf.maximum(0.0, right_bottom[1, ...] - left_top[1, ...])
         area = w * h
 
-        iou = area / tf.maximum((c_area + g_area - area), 1e-10) # prevent divided by zero!
+        iou = area / tf.maximum((c_area + g_area - area), 1) # prevent divided by zero!
 
         return tf.clip_by_value(iou, 0.0, 1.0)
 
@@ -93,13 +93,13 @@ class Yolo(object):
         box1 = np.stack([[box1[..., 1:5 * cfg.BOX_PER_CELL:5] - box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
                          [box1[..., 2:5 * cfg.BOX_PER_CELL:5] - box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0],  # y1
                          [box1[..., 1:5 * cfg.BOX_PER_CELL:5] + box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x2
-                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] + box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]]) # y2
+                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] + box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]])  # y2
         box1 = np.squeeze(box1, [1])
 
         box2 = np.stack([[box2[..., 1:5 * cfg.BOX_PER_CELL:5] - box2[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
                          [box2[..., 2:5 * cfg.BOX_PER_CELL:5] - box2[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0],  # y1
                          [box2[..., 1:5 * cfg.BOX_PER_CELL:5] + box2[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x2
-                         [box2[..., 2:5 * cfg.BOX_PER_CELL:5] + box2[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]]) # y2
+                         [box2[..., 2:5 * cfg.BOX_PER_CELL:5] + box2[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]])  # y2
         box2 = np.squeeze(box2, [1])
 
         left_top = np.maximum(box1[:2, ...], box2[:2, ...])
@@ -109,7 +109,7 @@ class Yolo(object):
         h = np.maximum(0.0, right_bottom[1, ...] - left_top[1, ...])
         area = w * h
 
-        iou = area / np.maximum((c_area + g_area - area), 1e-10) # prevent divided by zero!
+        iou = area / np.maximum((c_area + g_area - area), 1e-9) # prevent divided by zero!
 
         return np.clip(iou, 0.0, 1.0)
 
@@ -186,8 +186,8 @@ class Yolo(object):
         response = tf.cast(iou >= max_iou, tf.float32)
 
         # Compute first line
-        # x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
-        # y_index = np.arange(2, 5 * cfg.BOX_PER_CELL, 5)
+        x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
+        y_index = np.arange(2, 5 * cfg.BOX_PER_CELL, 5)
         coord_loss = cfg.COORD_SCALE * tf.reduce_sum(
             mask_obj * response * (
                     tf.square(preds[..., 1:5*cfg.BOX_PER_CELL:5] - boxes[..., 1:5*cfg.BOX_PER_CELL:5]) +
@@ -256,9 +256,29 @@ class Yolo(object):
         # h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
         size_loss = cfg.COORD_SCALE * np.sum(
             mask_obj * response * (
-                np.square(tf.sqrt(preds[..., 3:5*cfg.BOX_PER_CELL:5]) - tf.sqrt(boxes[..., 3:5*cfg.BOX_PER_CELL:5])) +
-                np.square(tf.sqrt(preds[..., 4:5*cfg.BOX_PER_CELL:5]) - tf.sqrt(boxes[..., 4:5*cfg.BOX_PER_CELL:5]))
+                np.square(np.sqrt(preds[..., 3:5*cfg.BOX_PER_CELL:5]) - np.sqrt(boxes[..., 3:5*cfg.BOX_PER_CELL:5])) +
+                np.square(np.sqrt(preds[..., 4:5*cfg.BOX_PER_CELL:5]) - np.sqrt(boxes[..., 4:5*cfg.BOX_PER_CELL:5]))
                 )
         )
 
-        code.interact(local=locals())
+        # Compute third line
+        # c_index = np.arange(0, 5 * cfg.BOX_PER_CELL, 5)
+        obj_loss = np.sum(
+            mask_obj * response * np.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - iou)
+        )
+
+        # Compute forth line
+        noobj_loss = cfg.NOOBJ_SCALE * np.sum(
+            (1 - mask_obj) * np.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - 0)
+        )
+
+        # Compute fifth line
+        class_loss = np.sum(
+            mask_obj * np.sum(np.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:]))
+        )
+
+        total_loss = coord_loss + size_loss + obj_loss + noobj_loss + class_loss
+
+        print(total_loss)
+
+        # code.interact(local=locals())
