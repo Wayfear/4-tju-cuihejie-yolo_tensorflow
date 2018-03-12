@@ -12,8 +12,8 @@ class Yolo(object):
         self.coord_scale = cfg.COORD_SCALE
         self.noobj_scale = cfg.NOOBJ_SCALE
 
-        self.images = tf.placeholder(tf.float32, [cfg.BATCH_SIZE, cfg.IMAGE_SIZE, cfg.IMAGE_SIZE, 3], name='images')
-        self.labels = tf.placeholder(tf.float32, [cfg.BATCH_SIZE, cfg.CELL_SIZE, cfg.CELL_SIZE, 5 + cfg.CLASS_NUM],
+        self.images = tf.placeholder(tf.float32, [None, cfg.IMAGE_SIZE, cfg.IMAGE_SIZE, 3], name='images')
+        self.labels = tf.placeholder(tf.float32, [None, cfg.CELL_SIZE, cfg.CELL_SIZE, 5 + cfg.CLASS_NUM],
                                      name='labels')
         self.net = self._build_net(self.images, cfg.CLASS_NUM, cfg.BOX_PER_CELL, cfg.CELL_SIZE)
         self.loss = self._loss(self.net, self.labels)
@@ -174,10 +174,10 @@ class Yolo(object):
 
         """
 
-        mask_obj = labels[:, :, :, 0, tf.newaxis]  # [?, CELL_SIZE, CELL_SIZE]
+        mask_obj = labels[:, :, :, 0, tf.newaxis]  # [None, CELL_SIZE, CELL_SIZE, 1]
         mask_obj = tf.tile(mask_obj, [1, 1, 1, cfg.BOX_PER_CELL])
 
-        boxes = tf.tile(labels[..., :5], [1, 1, 1, cfg.BOX_PER_CELL])  # [?, CELL_SIZE, CELL_SIZE, 5 * BOX_PER_CELL]
+        boxes = tf.tile(labels[..., :5], [1, 1, 1, cfg.BOX_PER_CELL])  # [None, CELL_SIZE, CELL_SIZE, 5 * BOX_PER_CELL]
 
         iou = self._calc_iou(preds[:, :, :, :5 * cfg.BOX_PER_CELL], boxes[:, :, :, :5 * cfg.BOX_PER_CELL])
 
@@ -200,6 +200,7 @@ class Yolo(object):
 
         # coord_loss = tf.Print(coord_loss, [coord_loss], "Coord Loss:")
 
+        tf.summary.scalar('coord loss', coord_loss)
         tf.losses.add_loss(coord_loss)
 
 
@@ -218,6 +219,7 @@ class Yolo(object):
 
         # size_loss = tf.Print(size_loss, [size_loss], "Size Loss:")
 
+        tf.summary.scalar('size loss', size_loss)
         tf.losses.add_loss(size_loss)
 
 
@@ -232,6 +234,7 @@ class Yolo(object):
 
         # obj_loss = tf.Print(obj_loss, [obj_loss], "Object Loss:")
 
+        tf.summary.scalar('object loss', obj_loss)
         tf.losses.add_loss(obj_loss)
 
 
@@ -245,6 +248,7 @@ class Yolo(object):
 
         # noobj_loss = tf.Print(noobj_loss, [noobj_loss], "No-Object Loss:")
 
+        tf.summary.scalar('no-object loss', noobj_loss)
         tf.losses.add_loss(noobj_loss)
 
 
@@ -259,8 +263,8 @@ class Yolo(object):
 
         # class_loss = tf.Print(class_loss, [class_loss], "Class Loss:")
 
+        tf.summary.scalar('class loss', class_loss)
         tf.losses.add_loss(class_loss)
-
 
         return tf.losses.get_total_loss()
 

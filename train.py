@@ -35,7 +35,7 @@ def main():
     # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
     # sess.add_tensor_filter('has_inf_or_nan', tf_debug.has_inf_or_nan)
 
-    tf.summary.scalar('loss', yolo.loss)
+    tf.summary.scalar('total loss', yolo.loss)
     merged = tf.summary.merge_all()
     train_writer = tf.summary.FileWriter('logs/', sess.graph)
 
@@ -52,10 +52,6 @@ def main():
             yolo.images: images,
             yolo.labels: labels
         }
-
-        # if iter > 50:
-        #     preds, loss = sess.run([yolo.net, yolo.loss], feed_dict=feed_dict)
-        #     yolo.debug(preds, labels)
 
         # preds, loss = sess.run([yolo.net, yolo.loss], feed_dict=feed_dict)
         # yolo.debug(preds, labels)

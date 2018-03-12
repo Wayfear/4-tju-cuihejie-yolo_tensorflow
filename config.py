@@ -41,3 +41,11 @@ BOX_PER_CELL = 2
 COORD_SCALE = 5.0
 
 NOOBJ_SCALE = 0.5
+
+#
+# test parameter
+#
+
+THRESHOLD = 0.15
+
+IOU_THRESHOLD = 0.5
