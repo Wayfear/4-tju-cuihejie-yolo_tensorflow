@@ -50,13 +50,13 @@ class Yolo(object):
         # w_index = np.arange(3, 5 * cfg.BOX_PER_CELL, 5)
         # h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
 
-        c_area = box1[..., 3:5 * cfg.BOX_PER_CELL:5] * box1[..., 4:5 * cfg.BOX_PER_CELL:5]
+        c_area = tf.square(box1[..., 3:5 * cfg.BOX_PER_CELL:5]) * tf.square(box1[..., 4:5 * cfg.BOX_PER_CELL:5])
         g_area = box2[..., 3:5 * cfg.BOX_PER_CELL:5] * box2[..., 4:5 * cfg.BOX_PER_CELL:5]
 
-        box1 = tf.stack([[box1[..., 1:5 * cfg.BOX_PER_CELL:5] - box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
-                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] - box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0],  # y1
-                         [box1[..., 1:5 * cfg.BOX_PER_CELL:5] + box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x2
-                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] + box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]])  # y2
+        box1 = tf.stack([[box1[..., 1:5 * cfg.BOX_PER_CELL:5] - tf.square(box1[..., 3:5 * cfg.BOX_PER_CELL:5]) / 2.0],  # x1
+                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] - tf.square(box1[..., 4:5 * cfg.BOX_PER_CELL:5]) / 2.0],  # y1
+                         [box1[..., 1:5 * cfg.BOX_PER_CELL:5] + tf.square(box1[..., 3:5 * cfg.BOX_PER_CELL:5]) / 2.0],  # x2
+                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] + tf.square(box1[..., 4:5 * cfg.BOX_PER_CELL:5]) / 2.0]])  # y2
         box1 = tf.squeeze(box1, [1])
 
         box2 = tf.stack([[box2[..., 1:5 * cfg.BOX_PER_CELL:5] - box2[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
@@ -87,13 +87,13 @@ class Yolo(object):
         # w_index = np.arange(3, 5 * cfg.BOX_PER_CELL, 5)
         # h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
 
-        c_area = box1[..., 3:5 * cfg.BOX_PER_CELL:5] * box1[..., 4:5 * cfg.BOX_PER_CELL:5]
+        c_area = np.square(box1[..., 3:5 * cfg.BOX_PER_CELL:5]) * np.square(box1[..., 4:5 * cfg.BOX_PER_CELL:5])
         g_area = box2[..., 3:5 * cfg.BOX_PER_CELL:5] * box2[..., 4:5 * cfg.BOX_PER_CELL:5]
 
-        box1 = np.stack([[box1[..., 1:5 * cfg.BOX_PER_CELL:5] - box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
-                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] - box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0],  # y1
-                         [box1[..., 1:5 * cfg.BOX_PER_CELL:5] + box1[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x2
-                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] + box1[..., 4:5 * cfg.BOX_PER_CELL:5] / 2.0]])  # y2
+        box1 = np.stack([[box1[..., 1:5 * cfg.BOX_PER_CELL:5] - np.square(box1[..., 3:5 * cfg.BOX_PER_CELL:5]) / 2.0],  # x1
+                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] - np.square(box1[..., 4:5 * cfg.BOX_PER_CELL:5]) / 2.0],  # y1
+                         [box1[..., 1:5 * cfg.BOX_PER_CELL:5] + np.square(box1[..., 3:5 * cfg.BOX_PER_CELL:5]) / 2.0],  # x2
+                         [box1[..., 2:5 * cfg.BOX_PER_CELL:5] + np.square(box1[..., 4:5 * cfg.BOX_PER_CELL:5]) / 2.0]])  # y2
         box1 = np.squeeze(box1, [1])
 
         box2 = np.stack([[box2[..., 1:5 * cfg.BOX_PER_CELL:5] - box2[..., 3:5 * cfg.BOX_PER_CELL:5] / 2.0],  # x1
@@ -158,7 +158,7 @@ class Yolo(object):
                                     weights_regularizer=slim.l2_regularizer(0.001)):
                     net = slim.fully_connected(net, 4096, scope='conn_30')
                     net = slim.dropout(net, scope="dropout_31", keep_prob=dropout_keep_prob)
-                net = slim.fully_connected(net, cell_num * cell_num * (class_num + 5 * boxes_per_cell), scope="conn_32")
+                net = slim.fully_connected(net, cell_num * cell_num * (class_num + 5 * boxes_per_cell), activation_fn=None, scope="conn_32")
                 net = tf.reshape(net, [tf.shape(net)[0], cell_num, cell_num, class_num + 5 * boxes_per_cell])
 
         return net
@@ -188,10 +188,13 @@ class Yolo(object):
         # Compute first line
         x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
         y_index = np.arange(2, 5 * cfg.BOX_PER_CELL, 5)
-        coord_loss = cfg.COORD_SCALE * tf.reduce_sum(
-            response * (
-                    tf.square(preds[..., 1:5*cfg.BOX_PER_CELL:5] - boxes[..., 1:5*cfg.BOX_PER_CELL:5]) +
-                    tf.square(preds[..., 2:5*cfg.BOX_PER_CELL:5] - boxes[..., 2:5*cfg.BOX_PER_CELL:5])
+        coord_loss = cfg.COORD_SCALE * tf.reduce_mean(
+            tf.reduce_sum(
+                response * (
+                        tf.square(preds[..., 1:5*cfg.BOX_PER_CELL:5] - boxes[..., 1:5*cfg.BOX_PER_CELL:5]) +
+                        tf.square(preds[..., 2:5*cfg.BOX_PER_CELL:5] - boxes[..., 2:5*cfg.BOX_PER_CELL:5])
+                ),
+                axis=[1, 2, 3]
             )
         )
 
@@ -203,11 +206,14 @@ class Yolo(object):
         # Compute second line
         # w_index = np.arange(3, 5 * cfg.BOX_PER_CELL, 5)
         # h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
-        size_loss = cfg.COORD_SCALE * tf.reduce_sum(
-            response * (
-                tf.square(tf.sqrt(preds[..., 3:5*cfg.BOX_PER_CELL:5]) - tf.sqrt(boxes[..., 3:5*cfg.BOX_PER_CELL:5])) +
-                tf.square(tf.sqrt(preds[..., 4:5*cfg.BOX_PER_CELL:5]) - tf.sqrt(boxes[..., 4:5*cfg.BOX_PER_CELL:5]))
-                )
+        size_loss = cfg.COORD_SCALE * tf.reduce_mean(
+            tf.reduce_sum(
+                response * (
+                    tf.square(preds[..., 3:5*cfg.BOX_PER_CELL:5] - tf.sqrt(boxes[..., 3:5*cfg.BOX_PER_CELL:5])) +
+                    tf.square(preds[..., 4:5*cfg.BOX_PER_CELL:5] - tf.sqrt(boxes[..., 4:5*cfg.BOX_PER_CELL:5]))
+                    ),
+                axis=[1, 2, 3]
+            )
         )
 
         # size_loss = tf.Print(size_loss, [size_loss], "Size Loss:")
@@ -217,8 +223,11 @@ class Yolo(object):
 
         # Compute third line
         # c_index = np.arange(0, 5 * cfg.BOX_PER_CELL, 5)
-        obj_loss = tf.reduce_sum(
-            response * tf.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - iou)
+        obj_loss = tf.reduce_mean(
+            tf.reduce_sum(
+                response * tf.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - iou),
+                axis=[1, 2, 3]
+            )
         )
 
         # obj_loss = tf.Print(obj_loss, [obj_loss], "Object Loss:")
@@ -227,8 +236,11 @@ class Yolo(object):
 
 
         # Compute forth line
-        noobj_loss = cfg.NOOBJ_SCALE * tf.reduce_sum(
-            (1 - mask_obj) * tf.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - 0)
+        noobj_loss = cfg.NOOBJ_SCALE * tf.reduce_mean(
+            tf.reduce_sum(
+                (1 - mask_obj) * tf.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - 0),
+                axis=[1, 2, 3]
+            )
         )
 
         # noobj_loss = tf.Print(noobj_loss, [noobj_loss], "No-Object Loss:")
@@ -238,8 +250,11 @@ class Yolo(object):
 
         # Compute fifth line
         mask_obj = labels[:, :, :, 0, np.newaxis]  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 1]
-        class_loss = tf.reduce_sum(
-            mask_obj * tf.reduce_sum(tf.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:]), axis=[3], keepdims=True)
+        class_loss = tf.reduce_mean(
+            tf.reduce_sum(
+                mask_obj * tf.reduce_sum(tf.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:]), axis=[3], keepdims=True),
+                axis=[1, 2, 3]
+            )
         )
 
         # class_loss = tf.Print(class_loss, [class_loss], "Class Loss:")
@@ -265,38 +280,53 @@ class Yolo(object):
         # Compute first line
         # x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
         # y_index = np.arange(2, 5 * cfg.BOX_PER_CELL, 5)
-        coord_loss = cfg.COORD_SCALE * np.sum(
-            response * (
-                    np.square(preds[..., 1:5*cfg.BOX_PER_CELL:5] - boxes[..., 1:5*cfg.BOX_PER_CELL:5]) +
-                    np.square(preds[..., 2:5*cfg.BOX_PER_CELL:5] - boxes[..., 2:5*cfg.BOX_PER_CELL:5])
+        coord_loss = cfg.COORD_SCALE * np.mean(
+            np.sum(
+                response * (
+                        np.square(preds[..., 1:5*cfg.BOX_PER_CELL:5] - boxes[..., 1:5*cfg.BOX_PER_CELL:5]) +
+                        np.square(preds[..., 2:5*cfg.BOX_PER_CELL:5] - boxes[..., 2:5*cfg.BOX_PER_CELL:5])
+                ),
+                axis=(1, 2, 3)
             )
         )
 
         # Compute second line
         # w_index = np.arange(3, 5 * cfg.BOX_PER_CELL, 5)
         # h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
-        size_loss = cfg.COORD_SCALE * np.sum(
-            response * (
-                np.square(np.sqrt(preds[..., 3:5*cfg.BOX_PER_CELL:5]) - np.sqrt(boxes[..., 3:5*cfg.BOX_PER_CELL:5])) +
-                np.square(np.sqrt(preds[..., 4:5*cfg.BOX_PER_CELL:5]) - np.sqrt(boxes[..., 4:5*cfg.BOX_PER_CELL:5]))
-                )
+        size_loss = cfg.COORD_SCALE * np.mean(
+            np.sum(
+                response * (
+                    np.square(preds[..., 3:5*cfg.BOX_PER_CELL:5] - np.sqrt(boxes[..., 3:5*cfg.BOX_PER_CELL:5])) +
+                    np.square(preds[..., 4:5*cfg.BOX_PER_CELL:5] - np.sqrt(boxes[..., 4:5*cfg.BOX_PER_CELL:5]))
+                    ),
+                axis=(1, 2, 3)
+            )
         )
 
         # Compute third line
         # c_index = np.arange(0, 5 * cfg.BOX_PER_CELL, 5)
-        obj_loss = np.sum(
-            response * np.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - iou)
+        obj_loss = np.mean(
+            np.sum(
+                response * np.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - iou),
+                axis=(1, 2, 3)
+            )
         )
 
         # Compute forth line
-        noobj_loss = cfg.NOOBJ_SCALE * np.sum(
-            (1 - mask_obj) * np.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - 0)
+        noobj_loss = cfg.NOOBJ_SCALE * np.mean(
+            np.sum(
+                (1 - mask_obj) * np.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - 0),
+                axis=(1, 2, 3)
+            )
         )
 
         # Compute fifth line
         mask_obj = labels[:, :, :, 0, np.newaxis]  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 1]
-        class_loss = np.sum(
-            mask_obj * np.sum(np.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:]), axis=(3, ), keepdims=True)
+        class_loss = np.mean(
+            np.sum(
+                mask_obj * np.sum(np.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:]), axis=(3, ), keepdims=True),
+                axis=(1, 2, 3)
+            )
         )
 
         total_loss = coord_loss + size_loss + obj_loss + noobj_loss + class_loss
