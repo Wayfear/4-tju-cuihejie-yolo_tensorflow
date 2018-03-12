@@ -72,7 +72,7 @@ class Yolo(object):
         h = tf.maximum(0.0, right_bottom[1, ...] - left_top[1, ...])
         area = w * h
 
-        iou = area / tf.maximum((c_area + g_area - area), 1) # prevent divided by zero!
+        iou = area / tf.maximum((c_area + g_area - area), 1e-8) # prevent divided by zero!
 
         return tf.clip_by_value(iou, 0.0, 1.0)
 
@@ -109,7 +109,7 @@ class Yolo(object):
         h = np.maximum(0.0, right_bottom[1, ...] - left_top[1, ...])
         area = w * h
 
-        iou = area / np.maximum((c_area + g_area - area), 1e-9) # prevent divided by zero!
+        iou = area / np.maximum((c_area + g_area - area), 1e-8) # prevent divided by zero!
 
         return np.clip(iou, 0.0, 1.0)
 
@@ -183,55 +183,76 @@ class Yolo(object):
 
         max_iou = tf.reduce_max(iou, [3], keepdims=True)
 
-        response = tf.cast(iou >= max_iou, tf.float32)
+        response = tf.cast(iou >= max_iou, tf.float32) * mask_obj
 
         # Compute first line
         x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
         y_index = np.arange(2, 5 * cfg.BOX_PER_CELL, 5)
         coord_loss = cfg.COORD_SCALE * tf.reduce_sum(
-            mask_obj * response * (
+            response * (
                     tf.square(preds[..., 1:5*cfg.BOX_PER_CELL:5] - boxes[..., 1:5*cfg.BOX_PER_CELL:5]) +
                     tf.square(preds[..., 2:5*cfg.BOX_PER_CELL:5] - boxes[..., 2:5*cfg.BOX_PER_CELL:5])
             )
         )
+
+        # coord_loss = tf.Print(coord_loss, [coord_loss], "Coord Loss:")
+
         tf.losses.add_loss(coord_loss)
+
 
         # Compute second line
         # w_index = np.arange(3, 5 * cfg.BOX_PER_CELL, 5)
         # h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
         size_loss = cfg.COORD_SCALE * tf.reduce_sum(
-            mask_obj * response * (
+            response * (
                 tf.square(tf.sqrt(preds[..., 3:5*cfg.BOX_PER_CELL:5]) - tf.sqrt(boxes[..., 3:5*cfg.BOX_PER_CELL:5])) +
                 tf.square(tf.sqrt(preds[..., 4:5*cfg.BOX_PER_CELL:5]) - tf.sqrt(boxes[..., 4:5*cfg.BOX_PER_CELL:5]))
                 )
         )
+
+        # size_loss = tf.Print(size_loss, [size_loss], "Size Loss:")
+
         tf.losses.add_loss(size_loss)
+
 
         # Compute third line
         # c_index = np.arange(0, 5 * cfg.BOX_PER_CELL, 5)
         obj_loss = tf.reduce_sum(
-            mask_obj * response * tf.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - iou)
+            response * tf.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - iou)
         )
+
+        # obj_loss = tf.Print(obj_loss, [obj_loss], "Object Loss:")
+
         tf.losses.add_loss(obj_loss)
+
 
         # Compute forth line
         noobj_loss = cfg.NOOBJ_SCALE * tf.reduce_sum(
             (1 - mask_obj) * tf.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - 0)
         )
+
+        # noobj_loss = tf.Print(noobj_loss, [noobj_loss], "No-Object Loss:")
+
         tf.losses.add_loss(noobj_loss)
 
+
         # Compute fifth line
+        mask_obj = labels[:, :, :, 0, np.newaxis]  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 1]
         class_loss = tf.reduce_sum(
-            mask_obj * tf.reduce_sum(tf.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:]))
+            mask_obj * tf.reduce_sum(tf.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:]), axis=[3], keepdims=True)
         )
+
+        # class_loss = tf.Print(class_loss, [class_loss], "Class Loss:")
+
         tf.losses.add_loss(class_loss)
+
 
         return tf.losses.get_total_loss()
 
     def debug(self, preds, labels):
 
-        mask_obj = labels[:, :, :, 0, np.newaxis]  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 1]
-        mask_obj = np.tile(mask_obj, [1, 1, 1, cfg.BOX_PER_CELL])
+        mask_obj = labels[:, :, :, 0, np.newaxis]                  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 1]
+        mask_obj = np.tile(mask_obj, [1, 1, 1, cfg.BOX_PER_CELL])  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, BOX_PER_CELL]
 
         boxes = np.tile(labels[..., :5], [1, 1, 1, cfg.BOX_PER_CELL])  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 5 * BOX_PER_CELL]
 
@@ -239,13 +260,13 @@ class Yolo(object):
 
         max_iou = np.max(iou, (3,), keepdims=True)
 
-        response = (iou >= max_iou).astype(float)
+        response = (iou >= max_iou).astype(float) * mask_obj
 
         # Compute first line
         # x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
         # y_index = np.arange(2, 5 * cfg.BOX_PER_CELL, 5)
         coord_loss = cfg.COORD_SCALE * np.sum(
-            mask_obj * response * (
+            response * (
                     np.square(preds[..., 1:5*cfg.BOX_PER_CELL:5] - boxes[..., 1:5*cfg.BOX_PER_CELL:5]) +
                     np.square(preds[..., 2:5*cfg.BOX_PER_CELL:5] - boxes[..., 2:5*cfg.BOX_PER_CELL:5])
             )
@@ -255,7 +276,7 @@ class Yolo(object):
         # w_index = np.arange(3, 5 * cfg.BOX_PER_CELL, 5)
         # h_index = np.arange(4, 5 * cfg.BOX_PER_CELL, 5)
         size_loss = cfg.COORD_SCALE * np.sum(
-            mask_obj * response * (
+            response * (
                 np.square(np.sqrt(preds[..., 3:5*cfg.BOX_PER_CELL:5]) - np.sqrt(boxes[..., 3:5*cfg.BOX_PER_CELL:5])) +
                 np.square(np.sqrt(preds[..., 4:5*cfg.BOX_PER_CELL:5]) - np.sqrt(boxes[..., 4:5*cfg.BOX_PER_CELL:5]))
                 )
@@ -264,7 +285,7 @@ class Yolo(object):
         # Compute third line
         # c_index = np.arange(0, 5 * cfg.BOX_PER_CELL, 5)
         obj_loss = np.sum(
-            mask_obj * response * np.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - iou)
+            response * np.square(preds[..., 0:5*cfg.BOX_PER_CELL:5] - iou)
         )
 
         # Compute forth line
@@ -273,8 +294,9 @@ class Yolo(object):
         )
 
         # Compute fifth line
+        mask_obj = labels[:, :, :, 0, np.newaxis]  # [BATCH_SIZE, CELL_SIZE, CELL_SIZE, 1]
         class_loss = np.sum(
-            mask_obj * np.sum(np.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:]))
+            mask_obj * np.sum(np.square(preds[..., -cfg.CLASS_NUM:] - labels[..., -cfg.CLASS_NUM:]), axis=(3, ), keepdims=True)
         )
 
         total_loss = coord_loss + size_loss + obj_loss + noobj_loss + class_loss

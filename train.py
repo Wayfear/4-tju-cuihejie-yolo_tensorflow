@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+from tensorflow.python import debug as tf_debug
 
 import config as cfg
 from provider.data_provider import DataProvider
@@ -31,6 +32,8 @@ def main():
     saver = tf.train.Saver(max_to_keep=5)
 
     sess = tf.Session()
+    # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
+    # sess.add_tensor_filter('has_inf_or_nan', tf_debug.has_inf_or_nan)
 
     tf.summary.scalar('loss', yolo.loss)
     merged = tf.summary.merge_all()
