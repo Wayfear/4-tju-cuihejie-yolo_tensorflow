@@ -64,7 +64,7 @@ def main():
         if iter % cfg.SUMMARY_ITER == 0:
             loss, summary, _ = sess.run([yolo.loss, merged, train_op], feed_dict=feed_dict)
             train_writer.add_summary(summary, global_step=global_step.eval(sess))
-            print("Epoch: {}, Iter: {}, Loss: {}".format(data.epoch, iter, loss))
+            print("Epoch: {}, Iter: {}, Learning Rate: {}, Loss: {}".format(data.epoch, iter, learning_rate.eval(sess), loss))
         else:
             summary, _ = sess.run([merged, train_op], feed_dict=feed_dict)
             train_writer.add_summary(summary, global_step=global_step.eval(sess))
