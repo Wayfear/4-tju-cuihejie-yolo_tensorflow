@@ -46,6 +46,6 @@ NOOBJ_SCALE = 0.5
 # test parameter
 #
 
-THRESHOLD = 0.15
+THRESHOLD = 0.1
 
 IOU_THRESHOLD = 0.5

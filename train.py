@@ -20,9 +20,14 @@ def main():
         cfg.DECAY_RATE,
         cfg.STAIRCASE
     )
-    optimizer = tf.train.GradientDescentOptimizer(
+
+    # optimizer = tf.train.GradientDescentOptimizer(
+    #     learning_rate=learning_rate
+    # )
+    optimizer = tf.train.AdamOptimizer(
         learning_rate=learning_rate
     )
+
     train_op = slim.learning.create_train_op(
         yolo.loss,
         optimizer,
@@ -35,7 +40,7 @@ def main():
     # sess = tf_debug.LocalCLIDebugWrapperSession(sess)
     # sess.add_tensor_filter('has_inf_or_nan', tf_debug.has_inf_or_nan)
 
-    tf.summary.scalar('total loss', yolo.loss)
+    tf.summary.scalar('loss', yolo.loss)
     merged = tf.summary.merge_all()
     train_writer = tf.summary.FileWriter('logs/', sess.graph)
 

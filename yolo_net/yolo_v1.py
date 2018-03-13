@@ -179,11 +179,14 @@ class Yolo(object):
 
         boxes = tf.tile(labels[..., :5], [1, 1, 1, cfg.BOX_PER_CELL])  # [None, CELL_SIZE, CELL_SIZE, 5 * BOX_PER_CELL]
 
-        iou = self._calc_iou(preds[:, :, :, :5 * cfg.BOX_PER_CELL], boxes[:, :, :, :5 * cfg.BOX_PER_CELL])
+        iou = self._calc_iou(preds[:, :, :, :5 * cfg.BOX_PER_CELL], boxes[:, :, :, :5 * cfg.BOX_PER_CELL]) # [None, CELL_SIZE, CELL_SIZE, BOX_PER_CELL]
 
         max_iou = tf.reduce_max(iou, [3], keepdims=True)
 
         response = tf.cast(iou >= max_iou, tf.float32) * mask_obj
+
+        avg_iou = tf.reduce_sum(iou * response) / tf.reduce_sum(response)
+        tf.summary.scalar('avg iou', avg_iou)
 
         # Compute first line
         x_index = np.arange(1, 5 * cfg.BOX_PER_CELL, 5)
