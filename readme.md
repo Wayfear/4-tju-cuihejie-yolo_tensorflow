@@ -27,6 +27,6 @@ python test.py
 ```
 
 ## Demo
-[](gallery/loss.png)
-[](demo1.png)
-[](demo2.png)
+![](gallery/loss.png)
+![](gallery/demo1.png)
+![](gallery/demo2.png)
