@@ -10,8 +10,6 @@ def main():
 
     ori_img = cv2.imread('test.jpg')
     height, width = ori_img.shape[:2]
-    w_scale = cfg.IMAGE_SIZE / width
-    h_scale = cfg.IMAGE_SIZE / height
 
     img = cv2.resize(ori_img, (cfg.IMAGE_SIZE, cfg.IMAGE_SIZE))
 
@@ -26,34 +24,33 @@ def main():
 
     for i in range(cfg.CELL_SIZE):
         for j in range(cfg.CELL_SIZE):
-            if preds[i, j, 0] > cfg.THRESHOLD:
-                x = preds[i, j, 1] * cfg.IMAGE_SIZE / w_scale
-                y = preds[i, j, 2] * cfg.IMAGE_SIZE / h_scale
-                w = np.square(preds[i, j, 3]) * cfg.IMAGE_SIZE / w_scale
-                h = np.square(preds[i, j, 4]) * cfg.IMAGE_SIZE / h_scale
+            c = preds[i, j, 0:5*cfg.BOX_PER_CELL:5]
+            c = np.expand_dims(c, axis=1)
+            _class = preds[i, j, -cfg.CLASS_NUM:]
+            _class = np.expand_dims(_class, axis=0)
+            c_class = np.multiply(c, _class)
+
+            max_c_class = np.max(c_class, axis=1)
+            response = np.argmax(max_c_class)
+            class_index = np.argmax(c_class[response])
+
+            p = c_class[response][class_index]
+
+            if p >= cfg.THRESHOLD:
+                offset = 5 * response
+                x = preds[i, j, 1+offset] * width
+                y = preds[i, j, 2+offset] * height
+                w = np.square(preds[i, j, 3+offset]) * width
+                h = np.square(preds[i, j, 4+offset]) * height
                 box = [
                     (int(x - w / 2), int(y - h / 2)),
                     (int(x + w / 2), int(y + h / 2))
                 ]
                 ori_img = cv2.rectangle(ori_img, box[0], box[1], (0, 255, 0), 2)
 
-                class_index = np.argmax(preds[i, j, -cfg.CLASS_NUM:])
                 class_name = cfg.CLASSES[class_index]
                 cv2.putText(ori_img, class_name, box[0], cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-            if preds[i, j, 5] > cfg.THRESHOLD:
-                x = preds[i, j, 1] * cfg.IMAGE_SIZE / w_scale
-                y = preds[i, j, 2] * cfg.IMAGE_SIZE / h_scale
-                w = np.square(preds[i, j, 3]) * cfg.IMAGE_SIZE / w_scale
-                h = np.square(preds[i, j, 4]) * cfg.IMAGE_SIZE / h_scale
-                box = [
-                    (int(x - w / 2), int(y - h / 2)),
-                    (int(x + w / 2), int(y + h / 2))
-                ]
-                ori_img = cv2.rectangle(ori_img, box[0], box[1], (0, 255, 0), 2)
 
-                class_index = np.argmax(preds[i, j, -cfg.CLASS_NUM:])
-                class_name = cfg.CLASSES[class_index]
-                cv2.putText(ori_img, class_name, box[0], cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
 
     cv2.imshow('image', ori_img)
     cv2.waitKey(0)

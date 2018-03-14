@@ -12,7 +12,7 @@ CLASS_NUM = len(CLASSES)
 # solver parameter
 #
 
-MAX_ITER = 30000
+MAX_ITER = 50000
 
 SUMMARY_ITER = 10
 
@@ -46,6 +46,6 @@ NOOBJ_SCALE = 0.5
 # test parameter
 #
 
-THRESHOLD = 0.1
+THRESHOLD = 0.2
 
 IOU_THRESHOLD = 0.5
