@@ -24,6 +24,7 @@ def main():
     # optimizer = tf.train.GradientDescentOptimizer(
     #     learning_rate=learning_rate
     # )
+
     optimizer = tf.train.AdamOptimizer(
         learning_rate=learning_rate
     )
@@ -60,7 +61,6 @@ def main():
 
         # preds, loss = sess.run([yolo.net, yolo.loss], feed_dict=feed_dict)
         # yolo.debug(preds, labels)
-
 
         if iter % cfg.SUMMARY_ITER == 0:
             loss, summary, _ = sess.run([yolo.loss, merged, train_op], feed_dict=feed_dict)
